@@ -17,6 +17,57 @@ const resolvers = {
        },
     },
     Mutation: {
-    
+    //user mutations
+        createUser: async (parent, { username, email, password }) => {
+            const user = await User.create({ username, email, password });
+            const token = signToken(user);
+
+            return { token, user };
+        },
+        login: async (parent, { email, password }) => {
+            const user = await User.findOne({ email });
+
+            if (!profile) {
+                throw new AuthenticationError('No user with this email found');
+            }
+
+            const correctPw = await user.isCorrectPassword(password);
+
+            if (!correctPw) {
+                throw new AuthenticationError('Incorrect password');
+            }
+
+            const token = signToken(user);
+            return { token, profile };
+        },
+
+        saveBook: async (parent, { userId, savedBook }, context) => {
+            if (context.user) {
+                return User.findOneAndUpdate(
+                    { _id: userId },
+                    {
+                        $addToSet: { savedBooks: savedBook },
+                    },
+                    {
+                        new: true,
+                        runValidators: true,
+                    }
+                );
+            }
+            // Throw an error if user attempts this mutation and isn't logged in
+            throw new AuthenticationError('You need to be logged in');
+        },
+        deleteBook: async (parent, { savedBook }, context) => {
+            if (context.user) {
+                return User.findOneAndUpdate(
+                    { _id: context.user._id },
+                    { $pull: { savedBooks: savedBook }},
+                    { new: true }
+                );
+            }
+            throw new AuthenticationError('You need to be logged in');
+        },
     }
 }
+
+module.exports = resolvers;
